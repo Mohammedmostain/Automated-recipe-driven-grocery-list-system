@@ -1,0 +1,51 @@
+# ==========================
+# GLOBAL / OS / IDE
+# ==========================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# ==========================
+# BACKEND (Python / FastAPI)
+# ==========================
+backend/__pycache__/
+backend/*/__pycache__/
+backend/*.py[cod]
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.env
+backend/.coverage
+backend/htmlcov/
+backend/.pytest_cache/
+
+# Database (if using local SQLite for testing, though you use Postgres)
+*.sqlite3
+*.db
+
+# ==========================
+# FRONTEND (Web / Next.js)
+# ==========================
+web/node_modules/
+web/.next/
+web/build/
+web/dist/
+web/.env
+web/.env.local
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/.vercel/
+
+# ==========================
+# DOCKER & MISC
+# ==========================
+docker-data/
+postgres_data/
+*.pid
