@@ -1,8 +1,23 @@
 from fastapi import FastAPI
 from app.core.config import settings
 from app.api.endpoints import auth
-
+from fastapi.middleware.cors import CORSMiddleware  # <--- Import this
 app = FastAPI(title=settings.PROJECT_NAME)
+
+
+# --- ADD CORS MIDDLEWARE ---
+origins = [
+    "http://localhost:3000",  # Next.js frontend
+    "http://127.0.0.1:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include the Auth Router
 # We prefix with /api/v1/auth to match your specs
