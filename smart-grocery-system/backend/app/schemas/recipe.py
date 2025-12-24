@@ -2,19 +2,22 @@ from pydantic import BaseModel
 from typing import List, Optional
 from uuid import UUID
 
-# --- Nested Schemas for Ingredients ---
+# --- Nested Schemas ---
 
+# Base schema for shared fields
 class RecipeIngredientBase(BaseModel):
-    ingredient_id: UUID
     quantity: str
     unit: Optional[str] = None
 
+# INPUT schema: Now accepts EITHER ingredient_id OR name
 class RecipeIngredientCreate(RecipeIngredientBase):
-    pass
+    ingredient_id: Optional[UUID] = None
+    name: Optional[str] = None 
 
 class RecipeIngredientResponse(RecipeIngredientBase):
     id: UUID
-    name: str # We will map this from the related Ingredient object
+    ingredient_id: UUID
+    name: str 
 
     class Config:
         from_attributes = True
@@ -34,7 +37,6 @@ class RecipeUpdate(RecipeBase):
 
 class RecipeResponse(RecipeBase):
     id: UUID
-    # We include the nested ingredients in the response
     ingredients: List[RecipeIngredientResponse] = []
 
     class Config:

@@ -1,7 +1,9 @@
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func  # <--- Added for case-insensitive search
 
 from app.db.session import get_db
 from app.api import deps
@@ -11,6 +13,41 @@ from app.models.user import User
 from app.schemas.recipe import RecipeCreate, RecipeResponse, RecipeUpdate
 
 router = APIRouter()
+
+# --- Helper Function to Handle Custom Ingredients ---
+def get_or_create_ingredient(db: Session, item) -> UUID:
+    """
+    Returns the UUID of the ingredient. 
+    1. If ingredient_id is provided, return it.
+    2. If name is provided, check if it exists (case-insensitive).
+    3. If it doesn't exist, create a new Ingredient.
+    """
+    # 1. Use ID if provided
+    if item.ingredient_id:
+        return item.ingredient_id
+
+    # 2. Handle Name (Custom Ingredient)
+    if item.name:
+        # Check if it already exists (e.g. user typed "Salt" but didn't select it)
+        existing = db.query(Ingredient).filter(
+            func.lower(Ingredient.name) == item.name.lower()
+        ).first()
+        
+        if existing:
+            return existing.id
+        
+        # 3. Create New Ingredient
+        new_ing = Ingredient(
+            name=item.name,
+            aisle="Other", # Default aisle for custom items
+            default_unit=item.unit
+        )
+        db.add(new_ing)
+        db.flush() # Flush to generate the ID
+        return new_ing.id
+    
+    raise HTTPException(status_code=400, detail="Ingredient must have either an ID or a Name")
+
 
 @router.get("/", response_model=List[RecipeResponse])
 def read_recipes(
@@ -28,7 +65,6 @@ def read_recipes(
     results = []
     for r in recipes:
         r_dict = r.__dict__
-        # Manually map the nested ingredient name for the response
         r_dict['ingredients'] = [
             {
                 "id": ri.id,
@@ -95,13 +131,14 @@ def create_recipe(
     db.add(new_recipe)
     db.flush() # Flush to generate the new_recipe.id without committing yet
 
-    # 2. Add Ingredients
+    # 2. Add Ingredients (using helper)
     for item in recipe_in.ingredients:
-        # Optional: Validate ingredient_id exists? 
-        # For now, we trust the frontend or let FK constraint fail
+        # Get ID from existing or create new
+        ing_id = get_or_create_ingredient(db, item)
+        
         recipe_ing = RecipeIngredient(
             recipe_id=new_recipe.id,
-            ingredient_id=item.ingredient_id,
+            ingredient_id=ing_id,
             quantity=item.quantity,
             unit=item.unit
         )
@@ -141,11 +178,14 @@ def update_recipe(
     # Clear existing
     db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe.id).delete()
     
-    # Add new
+    # Add new (using helper)
     for item in recipe_in.ingredients:
+        # Get ID from existing or create new
+        ing_id = get_or_create_ingredient(db, item)
+        
         new_ing = RecipeIngredient(
             recipe_id=recipe.id,
-            ingredient_id=item.ingredient_id,
+            ingredient_id=ing_id,
             quantity=item.quantity,
             unit=item.unit
         )
