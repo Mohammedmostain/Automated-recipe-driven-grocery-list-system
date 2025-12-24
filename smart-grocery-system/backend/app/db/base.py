@@ -5,3 +5,5 @@ Base = declarative_base()
 # Later, import all your models here so Alembic can see them:
 # from app.models.user import User
 # from app.models.recipe import Recipe
+# Import all models here so Alembic can see them
+# from app.models.user import User  # <--- Add this line

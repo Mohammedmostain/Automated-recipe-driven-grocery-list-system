@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.db.base import Base  # This is where all models will be collected
 
 # ------------------------------------------------------------------------
-
+from app.models.user import User  # Import all models here so Alembic can see them
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
