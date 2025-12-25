@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext"; // <--- 1. Add this import
+import { AuthProvider } from "@/context/AuthContext";
+import Providers from "@/lib/providers"; // <--- Import TanStack Query Provider
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Grocery System", // <--- Optional: I updated the title for you
+  title: "Smart Grocery System",
   description: "Automated grocery lists",
 };
 
@@ -28,10 +29,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* 2. Wrap the children with AuthProvider below */}
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        {/* Wrap everything in Providers first, then AuthProvider */}
+        <Providers>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

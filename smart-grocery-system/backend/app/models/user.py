@@ -15,7 +15,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")
-    
+    inventory = relationship("Inventory", back_populates="user", cascade="all, delete-orphan")
     # Relationships (We will uncomment these later when we create the other models)
     # recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")
     # inventory = relationship("Inventory", back_populates="user", cascade="all, delete-orphan")
