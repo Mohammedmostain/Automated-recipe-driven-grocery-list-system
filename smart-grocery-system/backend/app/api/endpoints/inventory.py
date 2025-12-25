@@ -102,3 +102,46 @@ def update_inventory_item(
         quantity=item.quantity,
         unit=item.unit
     )
+# ... (existing code)
+
+@router.delete("/{inventory_id}", status_code=204)
+def delete_inventory_item(
+    inventory_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """
+    Remove an item from the user's inventory.
+    """
+    item = db.query(Inventory).filter(
+        Inventory.id == inventory_id,
+        Inventory.user_id == current_user.id
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    db.delete(item)
+    db.commit()
+    return None# ... (existing code)
+
+@router.delete("/{inventory_id}", status_code=204)
+def delete_inventory_item(
+    inventory_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """
+    Remove an item from the user's inventory.
+    """
+    item = db.query(Inventory).filter(
+        Inventory.id == inventory_id,
+        Inventory.user_id == current_user.id
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    db.delete(item)
+    db.commit()
+    return None
