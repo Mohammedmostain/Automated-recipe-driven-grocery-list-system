@@ -1,9 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import Link from 'next/link';
+
+// Types matches Backend Schema
+interface RecipeIngredientInput {
+  ingredient_id?: string; // Optional if creating new
+  name: string;           // Required for display & creation
+  quantity: string;
+  unit: string;
+}
+
+interface RecipeCreate {
+  title: string;
+  servings: number;
+  instructions: string;
+  ingredients: RecipeIngredientInput[];
+}
 
 interface IngredientOption {
   id: string;
@@ -11,227 +27,254 @@ interface IngredientOption {
   default_unit: string;
 }
 
-interface IngredientRow {
-  ingredient_id: string; // If selecting existing
-  custom_name: string;   // If typing new
-  quantity: string;
-  unit: string;
-  isCustom: boolean;     // Toggle state
-}
-
 export default function NewRecipePage() {
   const router = useRouter();
-  
-  // Form State
+  const queryClient = useQueryClient();
+
+  // --- Form State ---
   const [title, setTitle] = useState('');
-  const [instructions, setInstructions] = useState('');
   const [servings, setServings] = useState(4);
-  const [rows, setRows] = useState<IngredientRow[]>([]);
-  
-  // Data State
-  const [availableIngredients, setAvailableIngredients] = useState<IngredientOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [instructions, setInstructions] = useState('');
+  const [ingredients, setIngredients] = useState<RecipeIngredientInput[]>([]);
 
-  useEffect(() => {
-    api.get('/ingredients')
-      .then(res => setAvailableIngredients(res.data))
-      .catch(err => console.error("Failed to load ingredients", err));
-  }, []);
+  // --- Ingredient Input State ---
+  const [ingName, setIngName] = useState('');
+  const [ingQty, setIngQty] = useState('');
+  const [ingUnit, setIngUnit] = useState('');
 
-  const addRow = () => {
-    setRows([...rows, { ingredient_id: '', custom_name: '', quantity: '', unit: '', isCustom: false }]);
-  };
+  // 1. Fetch Existing Ingredients (for Autocomplete/Dropdown)
+  const { data: existingIngredients } = useQuery<IngredientOption[]>({
+    queryKey: ['ingredients'],
+    queryFn: async () => (await api.get('/ingredients')).data,
+  });
 
-  const removeRow = (index: number) => {
-    const newRows = [...rows];
-    newRows.splice(index, 1);
-    setRows(newRows);
-  };
+  // 2. Create Mutation
+  const createMutation = useMutation({
+    mutationFn: async (newRecipe: RecipeCreate) => {
+      return api.post('/recipes', newRecipe);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      router.push('/'); // Go back to dashboard
+    },
+  });
 
-  const updateRow = (index: number, field: keyof IngredientRow, value: any) => {
-    const newRows = [...rows];
-    // @ts-ignore
-    newRows[index][field] = value;
-
-    // Auto-fill unit if selecting existing ingredient
-    if (field === 'ingredient_id' && !newRows[index].isCustom) {
-      const selected = availableIngredients.find(i => i.id === value);
-      if (selected && selected.default_unit) {
-        newRows[index].unit = selected.default_unit;
-      }
-    }
-    setRows(newRows);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Helper: Add Ingredient to Local List
+  const handleAddIngredient = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!ingName || !ingQty) return;
 
-    // Transform rows for API
-    const apiIngredients = rows.map(r => {
-      if (r.isCustom) {
-        return { name: r.custom_name, quantity: r.quantity, unit: r.unit };
-      } else {
-        return { ingredient_id: r.ingredient_id, quantity: r.quantity, unit: r.unit };
-      }
-    }).filter(r => (r.ingredient_id || r.name) && r.quantity);
+    // Check if selected name matches an existing ID
+    const match = existingIngredients?.find(
+      (i) => i.name.toLowerCase() === ingName.toLowerCase()
+    );
 
-    try {
-      await api.post('/recipes', {
-        title,
-        instructions,
-        servings,
-        ingredients: apiIngredients
-      });
-      router.push('/');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save recipe');
-    } finally {
-      setLoading(false);
-    }
+    const newIng: RecipeIngredientInput = {
+      ingredient_id: match?.id, // If match found, use ID
+      name: match?.name || ingName, // Proper casing if matched, else user input
+      quantity: ingQty,
+      unit: ingUnit || match?.default_unit || '',
+    };
+
+    setIngredients([...ingredients, newIng]);
+    
+    // Reset inputs
+    setIngName('');
+    setIngQty('');
+    setIngUnit('');
+  };
+
+  const removeIngredient = (index: number) => {
+    setIngredients(ingredients.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({
+      title,
+      servings,
+      instructions,
+      ingredients,
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 text-black">
-      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-10 font-sans text-gray-900 flex justify-center">
+      <div className="max-w-3xl w-full">
+        
+        {/* --- Header --- */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Create New Recipe</h1>
-          <Link href="/" className="text-gray-500 hover:text-gray-700">Cancel</Link>
+          <Link 
+            href="/" 
+            className="text-sm font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors"
+          >
+            ← Cancel
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">New Recipe</h1>
+          <div className="w-16"></div> {/* Spacer for alignment */}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="col-span-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Recipe Title</label>
-              <input 
-                type="text" 
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none"
-                placeholder="e.g. Mom's Spaghetti"
-                required
-              />
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Servings</label>
-              <input 
-                type="number" 
-                value={servings}
-                onChange={(e) => setServings(Number(e.target.value))}
-                className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none"
-                min="1"
-              />
+          
+          {/* --- Card 1: Basic Info --- */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+              Recipe Details
+            </h2>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Recipe Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Grandma's Lasagna"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-medium text-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Servings</label>
+                <div className="flex items-center gap-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setServings(Math.max(1, servings - 1))}
+                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex items-center justify-center transition"
+                  >
+                    -
+                  </button>
+                  <span className="text-xl font-bold text-gray-900 w-8 text-center">{servings}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setServings(servings + 1)}
+                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex items-center justify-center transition"
+                  >
+                    +
+                  </button>
+                  <span className="text-sm text-gray-500 ml-2">people</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
-            <textarea 
+          {/* --- Card 2: Ingredients --- */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+              Ingredients
+            </h2>
+
+            {/* Ingredient Adder Row */}
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-6">
+               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div className="md:col-span-6 relative">
+                    <input
+                      type="text"
+                      list="ingredient-options"
+                      value={ingName}
+                      onChange={(e) => setIngName(e.target.value)}
+                      placeholder="Ingredient (e.g. Flour)"
+                      className="w-full p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <datalist id="ingredient-options">
+                      {existingIngredients?.map(ing => (
+                        <option key={ing.id} value={ing.name} />
+                      ))}
+                    </datalist>
+                  </div>
+                  
+                  <div className="md:col-span-3">
+                     <input
+                      type="text"
+                      value={ingQty}
+                      onChange={(e) => setIngQty(e.target.value)}
+                      placeholder="Qty (e.g. 2)"
+                      className="w-full p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3">
+                     <input
+                      type="text"
+                      value={ingUnit}
+                      onChange={(e) => setIngUnit(e.target.value)}
+                      placeholder="Unit (e.g. cups)"
+                      className="w-full p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+               </div>
+               <button 
+                 type="button" // Prevent submitting the whole form
+                 onClick={handleAddIngredient}
+                 disabled={!ingName || !ingQty}
+                 className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 + Add Ingredient
+               </button>
+            </div>
+
+            {/* List of Added Ingredients */}
+            {ingredients.length === 0 ? (
+               <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                 No ingredients added yet.
+               </div>
+            ) : (
+              <ul className="space-y-2">
+                {ingredients.map((item, idx) => (
+                  <li key={idx} className="flex justify-between items-center bg-white p-3 border border-gray-100 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-bold text-xs">
+                        {idx + 1}
+                      </div>
+                      <span className="font-medium text-gray-800">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-600 font-semibold">
+                        {item.quantity} {item.unit}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeIngredient(idx)}
+                        className="text-gray-400 hover:text-red-500 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* --- Card 3: Instructions --- */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+              Instructions
+            </h2>
+            <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              className="w-full border rounded px-3 py-2 h-32 focus:ring-2 focus:ring-green-500 focus:outline-none"
-              placeholder="Step 1..."
+              placeholder="Step 1: Preheat the oven..."
+              rows={6}
+              className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition leading-relaxed resize-none"
             />
           </div>
 
-          <hr />
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">Ingredients</label>
-              <button 
-                type="button" 
-                onClick={addRow}
-                className="text-sm text-green-600 font-semibold hover:text-green-800"
-              >
-                + Add Ingredient
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {rows.map((row, index) => (
-                <div key={index} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 p-2 rounded">
-                  
-                  {/* Toggle Button */}
-                  <div className="flex-grow min-w-[200px]">
-                    {!row.isCustom ? (
-                      <select 
-                        value={row.ingredient_id}
-                        onChange={(e) => {
-                          if (e.target.value === 'CUSTOM_NEW') {
-                            updateRow(index, 'isCustom', true);
-                          } else {
-                            updateRow(index, 'ingredient_id', e.target.value);
-                          }
-                        }}
-                        className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select Ingredient...</option>
-                        {availableIngredients.map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name}</option>
-                        ))}
-                        <option value="CUSTOM_NEW" className="font-bold text-blue-600">+ Type Custom Name...</option>
-                      </select>
-                    ) : (
-                      <div className="flex gap-2">
-                        <input 
-                          type="text"
-                          placeholder="Enter ingredient name..."
-                          value={row.custom_name}
-                          onChange={(e) => updateRow(index, 'custom_name', e.target.value)}
-                          className="flex-grow border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          autoFocus
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => updateRow(index, 'isCustom', false)}
-                          className="text-xs text-gray-500 underline"
-                        >
-                          Back to List
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quantity */}
-                  <input 
-                    type="text" 
-                    placeholder="Qty"
-                    value={row.quantity}
-                    onChange={(e) => updateRow(index, 'quantity', e.target.value)}
-                    className="w-20 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-
-                  {/* Unit */}
-                  <input 
-                    type="text" 
-                    placeholder="Unit"
-                    value={row.unit}
-                    onChange={(e) => updateRow(index, 'unit', e.target.value)}
-                    className="w-20 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-
-                  {/* Remove Button */}
-                  <button 
-                    type="button"
-                    onClick={() => removeRow(index)}
-                    className="text-red-500 hover:text-red-700 px-2"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
+          {/* --- Submit Button --- */}
+          <div className="pt-4 pb-20">
+             <button
+               type="submit"
+               disabled={createMutation.isPending || ingredients.length === 0 || !title}
+               className="w-full bg-gray-900 text-white font-bold text-lg py-4 rounded-2xl shadow-xl hover:bg-black transition transform hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+             >
+               {createMutation.isPending ? 'Saving Recipe...' : 'Save Recipe'}
+             </button>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Saving...' : 'Save Recipe'}
-          </button>
         </form>
       </div>
     </div>

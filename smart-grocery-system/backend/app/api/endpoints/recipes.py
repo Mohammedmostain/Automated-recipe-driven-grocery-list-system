@@ -212,3 +212,18 @@ def toggle_recipe_selection(
     db.refresh(recipe)
     
     return read_recipe(str(recipe.id), db, current_user)
+
+@router.post("/clear-selection", status_code=200)
+def clear_all_selections(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """
+    Unselect ALL recipes for the current user.
+    """
+    # efficient bulk update
+    db.query(Recipe).filter(Recipe.user_id == current_user.id).update(
+        {Recipe.is_selected: False}, synchronize_session=False
+    )
+    db.commit()
+    return {"message": "Selection cleared"}
