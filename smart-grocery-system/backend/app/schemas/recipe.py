@@ -28,6 +28,7 @@ class RecipeBase(BaseModel):
     title: str
     instructions: Optional[str] = None
     servings: int = 4
+    is_selected: bool = False # <--- Add this
 
 class RecipeCreate(RecipeBase):
     ingredients: List[RecipeIngredientCreate] = []
@@ -38,6 +39,7 @@ class RecipeUpdate(RecipeBase):
 class RecipeResponse(RecipeBase):
     id: UUID
     ingredients: List[RecipeIngredientResponse] = []
-
+    is_selected: bool # <--- Add this
+    
     class Config:
         from_attributes = True

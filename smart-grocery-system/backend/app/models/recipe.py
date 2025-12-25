@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Text, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean # <--- Add Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -12,7 +12,7 @@ class Recipe(Base):
     title = Column(String, nullable=False)
     instructions = Column(Text, nullable=True)
     servings = Column(Integer, default=4)
-    
+    is_selected = Column(Boolean, default=False) # <--- Add this line
     # Relationships
     user = relationship("User", back_populates="recipes")
     ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
