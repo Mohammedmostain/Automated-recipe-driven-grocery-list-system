@@ -23,11 +23,11 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
 
-  // 1. Fetch Recipes using React Query
+  // 1. Fetch Recipes
   const { data: recipes, isLoading } = useQuery<Recipe[]>({
     queryKey: ['recipes'],
     queryFn: async () => (await api.get('/recipes')).data,
-    enabled: !!user // Only fetch if user is logged in
+    enabled: !!user 
   });
 
   // 2. Optimistic Mutation for Toggling Selection
@@ -35,30 +35,20 @@ export default function Dashboard() {
     mutationFn: async ({ id, is_selected }: { id: string; is_selected: boolean }) => {
       return api.patch(`/recipes/${id}/select`, { is_selected });
     },
-    // When the mutation starts:
     onMutate: async ({ id, is_selected }) => {
-      // A. Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['recipes'] });
-
-      // B. Snapshot the previous value
       const previousRecipes = queryClient.getQueryData<Recipe[]>(['recipes']);
-
-      // C. Optimistically update to the new value
       queryClient.setQueryData<Recipe[]>(['recipes'], (old) => {
         if (!old) return [];
         return old.map((recipe) =>
           recipe.id === id ? { ...recipe, is_selected } : recipe
         );
       });
-
-      // D. Return a context object with the snapshotted value
       return { previousRecipes };
     },
-    // If the mutation fails, use the context returned from onMutate to roll back
     onError: (err, newTodo, context) => {
       queryClient.setQueryData(['recipes'], context?.previousRecipes);
     },
-    // Always refetch after error or success to ensure sync
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
     },
@@ -68,14 +58,24 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 text-black">
-      <header className="flex justify-between items-center mb-8">
+      <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-800">My Recipes</h1>
-        <div className="space-x-4">
+        
+        <div className="flex items-center gap-4">
+           {/* --- NEW BUTTON HERE --- */}
+          <Link 
+            href="/grocery-list" 
+            className="bg-blue-600 text-white px-5 py-2 rounded-full font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2"
+          >
+            🛒 View Shopping List
+          </Link>
+          {/* ----------------------- */}
+
           <Link 
             href="/inventory" 
-            className="text-blue-600 font-medium hover:underline"
+            className="text-gray-600 font-medium hover:text-gray-900 hover:underline"
           >
-            Manage Inventory
+            My Fridge
           </Link>
           <Link 
             href="/recipes/new" 
@@ -85,7 +85,7 @@ export default function Dashboard() {
           </Link>
           <button 
             onClick={logout} 
-            className="text-red-500 hover:text-red-700 font-medium"
+            className="text-red-500 hover:text-red-700 font-medium ml-2"
           >
             Logout
           </button>
@@ -111,7 +111,6 @@ export default function Dashboard() {
               <div className="flex justify-between items-start mb-2">
                 <h2 className="text-xl font-bold">{recipe.title}</h2>
                 
-                {/* Checkbox Toggle */}
                 <label className="flex items-center space-x-2 cursor-pointer select-none">
                   <input 
                     type="checkbox"
@@ -123,15 +122,14 @@ export default function Dashboard() {
                     className="w-5 h-5 text-green-600 rounded focus:ring-green-500 border-gray-300"
                   />
                   <span className="text-sm font-medium text-gray-600">
-                    Cook this
+                    Cook
                   </span>
                 </label>
               </div>
 
               <p className="text-sm text-gray-500 mb-4">Serves: {recipe.servings}</p>
               
-              <h3 className="text-xs font-semibold uppercase text-gray-400 mb-2">Ingredients:</h3>
-              <ul className="text-sm space-y-1 mb-4">
+              <ul className="text-sm space-y-1 mb-4 text-gray-600">
                 {recipe.ingredients.slice(0, 3).map((ing, idx) => (
                   <li key={idx} className="truncate">
                     • {ing.quantity} {ing.unit} {ing.name}
