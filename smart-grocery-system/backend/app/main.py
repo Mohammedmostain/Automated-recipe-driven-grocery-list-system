@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.api.endpoints import auth
 from fastapi.middleware.cors import CORSMiddleware  # <--- Import this
-from app.api.endpoints import auth, recipes, ingredients, inventory # <--- Add inventory
+from app.api.endpoints import auth, recipes, ingredients, inventory, grocery # <--- Import grocery
 app = FastAPI(title=settings.PROJECT_NAME)
 
 
@@ -30,6 +30,8 @@ app.include_router(recipes.router, prefix="/api/v1/recipes", tags=["recipes"])
 app.include_router(ingredients.router, prefix="/api/v1/ingredients", tags=["ingredients"]) 
 # --- 4. Include the inventory router ---
 app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["inventory"]) # <--- Add this
+# --- 5. Include the grocery router ---
+app.include_router(grocery.router, prefix="/api/v1/grocery", tags=["grocery"]) # <--- Add router
 
 @app.get("/")
 def root():
