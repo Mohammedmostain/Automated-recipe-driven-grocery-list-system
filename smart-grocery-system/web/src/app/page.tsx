@@ -58,22 +58,29 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 text-black">
-      <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <header className="flex flex-col xl:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-800">My Recipes</h1>
         
-        <div className="flex items-center gap-4">
-           {/* --- NEW BUTTON HERE --- */}
+        <div className="flex flex-wrap items-center gap-4 justify-center">
+          {/* --- NEW BUTTON HERE --- */}
+          <Link 
+            href="/what-can-i-cook" 
+            className="bg-purple-600 text-white px-5 py-2 rounded-full font-semibold shadow hover:bg-purple-700 transition flex items-center gap-2"
+          >
+            🍳 What Can I Cook?
+          </Link>
+           {/* ----------------------- */}
+
           <Link 
             href="/grocery-list" 
             className="bg-blue-600 text-white px-5 py-2 rounded-full font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2"
           >
             🛒 View Shopping List
           </Link>
-          {/* ----------------------- */}
 
           <Link 
             href="/inventory" 
-            className="text-gray-600 font-medium hover:text-gray-900 hover:underline"
+            className="text-gray-600 font-medium hover:text-gray-900 hover:underline px-2"
           >
             My Fridge
           </Link>

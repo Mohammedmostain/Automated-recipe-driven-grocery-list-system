@@ -43,3 +43,15 @@ class RecipeResponse(RecipeBase):
     
     class Config:
         from_attributes = True
+
+class MissingIngredient(BaseModel):
+    name: str
+    missing_qty: str
+    unit: str
+
+class RecipeSuggestion(BaseModel):
+    id: UUID
+    title: str
+    servings: int
+    match_percentage: int
+    missing_ingredients: List[MissingIngredient]

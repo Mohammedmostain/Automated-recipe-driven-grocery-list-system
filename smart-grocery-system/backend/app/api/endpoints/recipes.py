@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 from pydantic import BaseModel # <--- Ensure BaseModel is imported
+from app.utils.suggestion_logic import suggest_recipes # <--- Import this
+from app.schemas.recipe import RecipeSuggestion # <--- Import this
 
 from app.db.session import get_db
 from app.api import deps
@@ -74,6 +76,18 @@ def read_recipes(
         results.append(r_dict)
     
     return results
+
+
+@router.get("/suggestions", response_model=List[RecipeSuggestion])
+def get_recipe_suggestions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """
+    Compare inventory against recipes and return sorted matches.
+    """
+    return suggest_recipes(db, current_user.id)
+
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)
 def read_recipe(
