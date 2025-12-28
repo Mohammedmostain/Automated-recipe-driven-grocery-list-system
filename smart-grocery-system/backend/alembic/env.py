@@ -22,6 +22,8 @@ from app.models.user import User  # Import all models here so Alembic can see th
 from app.models.ingredient import Ingredient  # <--- Add
 from app.models.recipe import Recipe, RecipeIngredient # <--- Add
 from app.models.inventory import Inventory  # <--- Add
+from app.models.friendship import Friendship  # <--- Add
+# ------------------------------------------------------------------------
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
